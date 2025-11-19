@@ -1,0 +1,27 @@
+{
+  "name": "group-3-8",
+  "version": "1.0.0",
+  "description": "Project 3",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jaewon-cyber/Group-3-8.git"
+  },
+  "author": "Josh, Jae, Bailie, Ryan",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jaewon-cyber/Group-3-8/issues"
+  },
+  "homepage": "https://github.com/jaewon-cyber/Group-3-8#readme",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "ejs": "^3.1.10",
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "knex": "^3.1.0",
+    "pg": "^8.16.3"
+  }
+}
