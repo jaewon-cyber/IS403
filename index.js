@@ -111,8 +111,10 @@ app.post("/login", async (req, res) => {
 app.get("/displayUsers", isAuthenticated, async (req, res) => {
     try {
         const loggedInStudentId = req.session.userId;
-        // Query all students and their courses/schedules/subjects
-        const rows = await knex("students as s")
+        const search = req.query.search?.trim() || "";
+
+        // Base query - displays all users and all course information for every user that is not the current client
+        let query = knex("students as s")
             .whereNot("s.student_id", loggedInStudentId)
             .leftJoin("student_schedules as ss", "s.student_id", "ss.student_id")
             .leftJoin("courses as c", "ss.course_id", "c.course_id")
@@ -127,13 +129,32 @@ app.get("/displayUsers", isAuthenticated, async (req, res) => {
                 "c.course_number",
                 "c.semester",
                 "c.year"
-            )
-            .orderBy("s.student_id", "asc");
+            );
 
-        // Group results by student → each student has an array of courses
+        // SEARCH LOGIC
+        if (search !== "") {
+            const normalized = search.replace(/\s+/g, " ").toUpperCase();
+
+            // for searches by subject code only
+            if (!normalized.includes(" ")) {
+                query.whereILike("sub.subject_code", `${normalized}%`);
+
+            // for searches by subject code and course number
+            } else {
+                const [subjectCode, courseNumber] = normalized.split(" ");
+                query
+                    .whereILike("sub.subject_code", `${subjectCode}%`)
+                    .andWhereILike("c.course_number", `${courseNumber}%`);
+            }
+        }
+
+        const rows = await query.orderBy("s.student_id", "asc");
+
+        // GROUPING LOGIC (UPDATED)
+        // Only include the courses actually returned by the search
         const studentsMap = {};
 
-        rows.forEach((row) => {
+        rows.forEach(row => {
             if (!studentsMap[row.student_id]) {
                 studentsMap[row.student_id] = {
                     student_id: row.student_id,
@@ -145,7 +166,7 @@ app.get("/displayUsers", isAuthenticated, async (req, res) => {
                 };
             }
 
-            // If the student has actual schedule rows
+            // Add course ONLY if it matched the search query
             if (row.subject_code && row.course_number) {
                 studentsMap[row.student_id].courses.push({
                     subject_code: row.subject_code,
@@ -156,15 +177,22 @@ app.get("/displayUsers", isAuthenticated, async (req, res) => {
             }
         });
 
-        const students = Object.values(studentsMap);
+        // Convert to array
+        let students = Object.values(studentsMap);
 
-        res.render("displayUsers", { students });
+        // If searching, hide students with no matching courses
+        if (search !== "") {
+            students = students.filter(s => s.courses.length > 0);
+        }
+
+        res.render("displayUsers", { students, search });
 
     } catch (error) {
         console.error("Error fetching users:", error);
         res.status(500).send("Server Error");
     }
 });
+
 
 // Create Profile Page (Requires Authentication)
 app.get("/createProfile", isAuthenticated, (req, res) => {
