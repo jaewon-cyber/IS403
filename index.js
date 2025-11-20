@@ -44,13 +44,13 @@ const isAuthenticated = (req, res, next) => {
 
 // --- Route Definitions ---
 
-// ➡️ Dashboard Page (Requires Authentication)
+// Dashboard Page (Requires Authentication)
 app.get("/", isAuthenticated, (req, res) => {
     // Pass the username to the index.ejs template for a personalized welcome
     res.render("index", { username: req.session.username });
 });
 
-// ➡️ Render Login Page
+// Render Login Page
 app.get("/login", (req, res) => {
     // Retrieve and clear any error messages from the session
     const error = req.session.error;
@@ -58,7 +58,7 @@ app.get("/login", (req, res) => {
     res.render("login", { error: error });
 });
 
-// ➡️ Handle Login Attempt
+// Handle Login Attempt
 app.post("/login", async (req, res) => {
     const { username, password } = req.body;
 
@@ -89,12 +89,12 @@ app.post("/login", async (req, res) => {
     }
 });
 
-// ➡️ Join Group Page (Requires Authentication)
+// Display Users Page (Requires Authentication)
 app.get("/displayUsers", isAuthenticated, (req, res) => {
     res.render("displayUsers")
 });
 
-// ➡️ Create Group Page (Requires Authentication)
+// Create Profile Page (Requires Authentication)
 app.get("/createProfile", isAuthenticated, (req, res) => {
     res.render("createProfile")
 });
