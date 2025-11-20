@@ -90,13 +90,13 @@ app.post("/login", async (req, res) => {
 });
 
 // ➡️ Join Group Page (Requires Authentication)
-app.get("/join-group", isAuthenticated, (req, res) => {
-    res.render("join-group")
+app.get("/displayUsers", isAuthenticated, (req, res) => {
+    res.render("displayUsers")
 });
 
 // ➡️ Create Group Page (Requires Authentication)
-app.get("/create-group", isAuthenticated, (req, res) => {
-    res.render("create-group")
+app.get("/createProfile", isAuthenticated, (req, res) => {
+    res.render("createProfile")
 });
 
 // ➡️ Logout Handler
