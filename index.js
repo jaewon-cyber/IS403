@@ -107,7 +107,7 @@ app.post("/login", async (req, res) => {
 });
 
 // Display Users Page (Requires Authentication)
-
+// test
 app.get("/displayUsers", isAuthenticated, async (req, res) => {
     try {
         const loggedInStudentId = req.session.userId;
