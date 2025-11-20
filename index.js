@@ -44,13 +44,30 @@ const isAuthenticated = (req, res, next) => {
 
 // --- Route Definitions ---
 
-// ➡️ Dashboard Page (Requires Authentication)
-app.get("/", isAuthenticated, (req, res) => {
+// Dashboard Page (Requires Authentication)
+//app.get("/", isAuthenticated, (req, res) => {
     // Pass the username to the index.ejs template for a personalized welcome
-    res.render("index", { username: req.session.username });
+    //res.render("index", { username: req.session.username });
+//});
+
+app.get("/", isAuthenticated, async (req, res) => {
+    try {
+        // Look up the logged-in student's first name
+        const student = await knex("students")
+            .where("student_id", req.session.userId)
+            .select("stud_first_name")
+            .first();
+
+        res.render("index", { firstName: student.stud_first_name });
+    } catch (error) {
+        console.error("Error fetching first name:", error);
+
+        // Fallback in case of issue
+        res.render("index", { firstName: "Student" });
+    }
 });
 
-// ➡️ Render Login Page
+// Render Login Page
 app.get("/login", (req, res) => {
     // Retrieve and clear any error messages from the session
     const error = req.session.error;
@@ -58,7 +75,7 @@ app.get("/login", (req, res) => {
     res.render("login", { error: error });
 });
 
-// ➡️ Handle Login Attempt
+// Handle Login Attempt
 app.post("/login", async (req, res) => {
     const { username, password } = req.body;
 
@@ -89,17 +106,72 @@ app.post("/login", async (req, res) => {
     }
 });
 
-// ➡️ Join Group Page (Requires Authentication)
-app.get("/displayUsers", isAuthenticated, (req, res) => {
-    res.render("displayUsers")
+// Display Users Page (Requires Authentication)
+
+app.get("/displayUsers", isAuthenticated, async (req, res) => {
+    try {
+        const loggedInStudentId = req.session.userId;
+        // Query all students and their courses/schedules/subjects
+        const rows = await knex("students as s")
+            .whereNot("s.student_id", loggedInStudentId)
+            .leftJoin("student_schedules as ss", "s.student_id", "ss.student_id")
+            .leftJoin("courses as c", "ss.course_id", "c.course_id")
+            .leftJoin("subjects as sub", "c.subject_id", "sub.subject_id")
+            .select(
+                "s.student_id",
+                "s.stud_first_name",
+                "s.stud_last_name",
+                "s.stud_phone_number",
+                "s.stud_email",
+                "sub.subject_code",
+                "c.course_number",
+                "c.semester",
+                "c.year"
+            )
+            .orderBy("s.student_id", "asc");
+
+        // Group results by student → each student has an array of courses
+        const studentsMap = {};
+
+        rows.forEach((row) => {
+            if (!studentsMap[row.student_id]) {
+                studentsMap[row.student_id] = {
+                    student_id: row.student_id,
+                    first_name: row.stud_first_name,
+                    last_name: row.stud_last_name,
+                    phone: row.stud_phone_number,
+                    email: row.stud_email,
+                    courses: []
+                };
+            }
+
+            // If the student has actual schedule rows
+            if (row.subject_code && row.course_number) {
+                studentsMap[row.student_id].courses.push({
+                    subject_code: row.subject_code,
+                    course_number: row.course_number,
+                    semester: row.semester,
+                    year: row.year
+                });
+            }
+        });
+
+        const students = Object.values(studentsMap);
+
+        res.render("displayUsers", { students });
+
+    } catch (error) {
+        console.error("Error fetching users:", error);
+        res.status(500).send("Server Error");
+    }
 });
 
-// ➡️ Create Group Page (Requires Authentication)
+// Create Profile Page (Requires Authentication)
 app.get("/createProfile", isAuthenticated, (req, res) => {
     res.render("createProfile")
 });
 
-// ➡️ Logout Handler
+// Logout Handler
 app.get("/logout", (req, res) => {
     // Destroy the session
     req.session.destroy((err) => {
