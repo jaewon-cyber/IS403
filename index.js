@@ -108,7 +108,7 @@ app.post("/login", async (req, res) => {
 
 // Display Users Page (Requires Authentication)
 
-app.get("/displayUsers", isAuthenticated, async (req, res) => {
+/* app.get("/displayUsers", isAuthenticated, async (req, res) => {
     try {
         const loggedInStudentId = req.session.userId;
         const search = req.query.search?.trim() || "";
@@ -185,6 +185,125 @@ app.get("/displayUsers", isAuthenticated, async (req, res) => {
             students = students.filter(s => s.courses.length > 0);
         }
 
+        res.render("displayUsers", { students, search });
+
+    } catch (error) {
+        console.error("Error fetching users:", error);
+        res.status(500).send("Server Error");
+    }
+}); */
+
+app.get("/displayUsers", isAuthenticated, async (req, res) => {
+    try {
+        const loggedInStudentId = req.session.userId;
+        const search = req.query.search?.trim() || "";
+
+        // Base query - display all users except the current student
+        let query = knex("students as s")
+            .whereNot("s.student_id", loggedInStudentId)
+            .leftJoin("student_schedules as ss", "s.student_id", "ss.student_id")
+            .leftJoin("courses as c", "ss.course_id", "c.course_id")
+            .leftJoin("subjects as sub", "c.subject_id", "sub.subject_id")
+            .select(
+                "s.student_id",
+                "s.stud_first_name",
+                "s.stud_last_name",
+                "s.stud_phone_number",
+                "s.stud_email",
+                "sub.subject_code",
+                "c.course_number",
+                "c.semester",
+                "c.year"
+            );
+
+        // SEARCH LOGIC (works with subject code, combination of subject code and course number
+        // multi-word subjects and course number combinations and spacing)
+        if (search !== "") {
+            let normalized = search.replace(/\s+/g, " ").toUpperCase().trim();
+            const tokens = normalized.split(" ");
+            const lastToken = tokens[tokens.length - 1];
+
+            if (/^\d+$/.test(lastToken)) {
+                // Last token is a number - like course_number
+                const courseNumber = tokens.pop();
+                const subjectCode = tokens.join(" ").replace(/\s+/g, "");
+
+                query
+                    .whereRaw("REPLACE(UPPER(sub.subject_code), ' ', '') LIKE ?", [`${subjectCode}%`])
+                    .andWhereILike("c.course_number", `${courseNumber}%`);
+            } else {
+                // Last token is not a number - search performed with only subject code
+                const subjectCode = normalized.replace(/\s+/g, "");
+                query.whereRaw("REPLACE(UPPER(sub.subject_code), ' ', '') LIKE ?", [`${subjectCode}%`]);
+            }
+        }
+
+        const rows = await query.orderBy("s.student_id", "asc");
+
+        // GROUPING LOGIC
+        const studentsMap = {};
+
+        rows.forEach(row => {
+            if (!studentsMap[row.student_id]) {
+                studentsMap[row.student_id] = {
+                    student_id: row.student_id,
+                    first_name: row.stud_first_name,
+                    last_name: row.stud_last_name,
+                    phone: row.stud_phone_number,
+                    email: row.stud_email,
+                    courses: []
+                };
+            }
+
+            if (row.subject_code && row.course_number) {
+                studentsMap[row.student_id].courses.push({
+                    subject_code: row.subject_code,
+                    course_number: row.course_number,
+                    semester: row.semester,
+                    year: row.year
+                });
+            }
+        });
+
+        let students = Object.values(studentsMap);
+
+        // Hide students with no matching courses when searching
+        if (search !== "") {
+            students = students.filter(s => s.courses.length > 0);
+        }
+
+        // COURSE SORTING (Most recent semester first, then alphabetical by subject_code)
+        const semesterOrder = {
+            "Fall": 4,
+            "Winter": 3,
+            "Spring": 2,
+            "Summer": 1
+        };
+
+        function getCourseScore(course) {
+            return course.year * 10 + semesterOrder[course.semester];
+        }
+
+        function sortCourses(a, b) {
+            const scoreA = getCourseScore(a);
+            const scoreB = getCourseScore(b);
+
+            // Newest first
+            if (scoreB !== scoreA) return scoreB - scoreA;
+
+            // Tie-breaker: alphabetical by subject_code
+            if (a.subject_code < b.subject_code) return -1;
+            if (a.subject_code > b.subject_code) return 1;
+            return 0;
+        }
+
+        students.forEach(student => {
+            if (student.courses) {
+                student.courses.sort(sortCourses);
+            }
+        });
+
+        // render displayUsers with search input
         res.render("displayUsers", { students, search });
 
     } catch (error) {
