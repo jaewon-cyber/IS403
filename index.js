@@ -44,77 +44,82 @@ const knex = require("knex")({
 
 // Authentication Middleware to protect routes
 const isAuthenticated = (req, res, next) => {
-    // Check if the user ID is present in the session
     if (req.session.userId) {
-        next(); // User is logged in, proceed to the next handler/route
+        next(); 
     } else {
-        // User is not logged in, redirect to login page with an error
-        req.session.error = "Please log in to view the dashboard.";
         res.redirect("/login");
     }
 };
 
 // --- Route Definitions ---
 
-// Dashboard Page (Requires Authentication)
-//app.get("/", isAuthenticated, (req, res) => {
-    // Pass the username to the index.ejs template for a personalized welcome
-    //res.render("index", { username: req.session.username });
-//});
 
+
+// ➡️ Dashboard Page
 app.get("/", isAuthenticated, async (req, res) => {
     try {
-        // Look up the logged-in student's first name
+        
+        const studentId = req.session.userId;
+
+        
         const student = await knex("students")
-            .where("student_id", req.session.userId)
-            .select("stud_first_name")
+            .where("student_id", studentId)
             .first();
 
-        res.render("index", { firstName: student.stud_first_name });
-    } catch (error) {
-        console.error("Error fetching first name:", error);
+        const firstName = student ? student.stud_first_name : req.session.username;
 
-        // Fallback in case of issue
-        res.render("index", { firstName: "Student" });
+        res.render("index", { firstName: firstName });
+
+    } catch (err) {
+        console.error("Dashboard Error:", err);
+        res.render("index", { firstName: "Student" }); 
     }
 });
 
+
 // Render Login Page
 app.get("/login", (req, res) => {
-    // Retrieve and clear any error messages from the session
-    const error = req.session.error;
-    req.session.error = null;
+    const error = req.session.error || null; 
+    req.session.error = null; 
     res.render("login", { error: error });
 });
 
-// Handle Login Attempt
+//  Handle Login Attempt
 app.post("/login", async (req, res) => {
     const { username, password } = req.body;
 
     try {
-        // Find the user in the 'credentials' table using both username and plaintext password
         const user = await knex('credentials')
             .where({
                 username: username,
-                password: password // Plaintext password comparison
+                password: password
             })
             .select('student_id', 'username')
-            .first(); // Retrieve only the first matching user
+            .first(); 
         
         if (user) {
-            // Authentication successful
-            req.session.userId = user.student_id;   // Store student_id in session
-            req.session.username = user.username; // Store username in session
-            res.redirect("/"); // Redirect to the main dashboard
+            req.session.userId = user.student_id;   
+            req.session.username = user.username; 
+            
+            
+            req.session.save(() => {
+                res.redirect("/"); 
+            });
         } else {
-            // Authentication failed
+            
             req.session.error = "Invalid username or password.";
-            res.redirect("/login");
+            
+            
+            req.session.save(() => {
+                res.redirect("/login");
+            });
         }
     } catch (err) {
         console.error("Login Error:", err);
         req.session.error = "An unexpected error occurred during login.";
-        res.redirect("/login");
+        req.session.save(() => {
+            res.redirect("/login");
+        });
     }
 });
 
