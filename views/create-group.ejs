@@ -1,11 +1,180 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8" />
+  <title>Create Profile</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    :root {
+      --byu-navy: #002e5d;
+      --byu-white: #ffffff;
+      --byu-accent: #0a4a8a;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, var(--byu-navy), var(--byu-accent));
+      color: var(--byu-navy);
+      -webkit-font-smoothing: antialiased;
+      display: block;
+    }
+    .page-wrap { max-width: 900px; margin: 2.5rem auto; padding: 1rem; }
+    .card {
+      background: var(--byu-white);
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+      border-top: 8px solid var(--byu-navy);
+    }
+    h2 { color: var(--byu-navy); }
+    .btn-custom {
+      background-color: var(--byu-navy) !important;
+      color: var(--byu-white) !important;
+      border: none;
+      border-radius: 6px;
+      padding: 0.55rem 1rem;
+    }
+    .btn-custom:hover { background-color: var(--byu-accent) !important; }
+
+    .current-classes {
+      margin-top: 1rem;
+      background: #f8f9fa;
+      padding: 0.7rem;
+      border-radius: 8px;
+      border-left: 4px solid var(--byu-navy);
+    }
+
+    .add-course {
+      margin-top: 1rem;
+      background: #fff;
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    footer { text-align:center; color:#a7a8aa; margin-top:0.8rem; }
+  </style>
 </head>
+
 <body>
-    <p>Create Group</p>
+  <div class="page-wrap">
+    <div class="card">
+
+      <h2 class="mb-3">Create New User</h2>
+      <% if (error) { %>
+        <div class="alert alert-danger"><%= error %></div>
+      <% } %>
+
+      <form action="/createProfile" method="POST">
+
+        <!-- BASIC PERSONAL INFO -->
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">First Name</label>
+            <input name="stud_first_name" class="form-control" required>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Last Name</label>
+            <input name="stud_last_name" class="form-control" required>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input name="stud_email" type="email" class="form-control" required>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Phone Number</label>
+            <input name="stud_phone_number" class="form-control">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Gender</label>
+            <input name="stud_gender" class="form-control">
+          </div>
+
+          <div class="col-md-2">
+            <label class="form-label">Age</label>
+            <input name="stud_age" type="number" class="form-control">
+          </div>
+        </div>
+
+        <hr>
+
+        <!-- ACCOUNT LOGIN INFO -->
+        <h5>Account Login</h5>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Username</label>
+            <input name="username" class="form-control" required>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Password (min 8 characters)</label>
+            <input name="password" type="password" minlength="8" class="form-control" required>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Confirm Password</label>
+            <input name="password_confirm" type="password" minlength="8" class="form-control" required>
+          </div>
+        </div>
+
+        <hr>
+
+        <!-- OPTIONAL COURSE ADD -->
+        <div class="add-course">
+          <h5>Add First Course (Optional)</h5>
+
+          <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+              <label class="form-label">Subject</label>
+              <select name="add_subject_id" class="form-select">
+                <option value="">-- Select Subject --</option>
+                <% subjects.forEach(s => { %>
+                  <option value="<%= s.subject_id %>">
+                    <%= s.subject_code %> — <%= s.subject_name %>
+                  </option>
+                <% }) %>
+              </select>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Semester</label>
+              <select name="add_semester" class="form-select">
+                <option value="">-- Select --</option>
+                <option value="Fall">Fall</option>
+                <option value="Winter">Winter</option>
+                <option value="Spring">Spring</option>
+                <option value="Summer">Summer</option>
+              </select>
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Year</label>
+              <input name="add_year" type="number" class="form-control" placeholder="2025">
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Course #</label>
+              <input name="add_course_number" class="form-control" placeholder="140">
+            </div>
+          </div>
+        </div>
+
+        <div class="text-center mt-3">
+            <button type="submit" class="btn btn-custom btn-primary me-2">Create User</button>            
+            <a href="/" class="btn btn-secondary">Back</a>
+        </div>
+   
+      </form>
+      <footer>© 2025 BYU Study Hub</footer>
+
+    </div>
+  </div>
 </body>
 </html>
