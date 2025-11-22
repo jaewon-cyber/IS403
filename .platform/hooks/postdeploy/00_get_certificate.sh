@@ -1,1 +1,1 @@
-sudo certbot -n -d sec3-8.is404.net/login --nginx --agree-tos --email ldssjw11@gmail.com
+sudo certbot -n -d https://sec3-8.is404.net/login --nginx --agree-tos --email ldssjw11@gmail.com
