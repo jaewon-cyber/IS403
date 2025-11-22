@@ -55,7 +55,7 @@ const isAuthenticated = (req, res, next) => {
 
 
 
-// ➡️ Dashboard Page
+// Dashboard Page
 app.get("/", async (req, res) => {
   try {
     let firstName = "Student";
@@ -80,7 +80,8 @@ app.get("/", async (req, res) => {
 
     res.render("index", {
       firstName,
-      isStudentUser
+      isStudentUser,
+      userId: req.session.userId
     });
 
   } catch (err) {
