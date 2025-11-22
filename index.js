@@ -5,6 +5,7 @@ const app = express();
 app.set("view engine", "ejs");
 app.use(bodyParser.urlencoded({ extended: true }));
 const port = process.env.PORT || 3000;
+
 const session = require("express-session");
 
 // Session configuration
@@ -18,29 +19,22 @@ app.use(
     )
 );
 
-// Knex PostgreSQL database configuration
+
+
+
+
 const knex = require("knex")({
     client: "pg",
     connection: {
-        host : "localhost",
-        user : "postgres",
-        password : "admin",
-        database : "studygroup",
-        port : 5432
+        host : process.env.DB_HOST || "localhost",
+        user : process.env.DB_USER || "postgres",
+        password : process.env.DB_PASSWORD || "admin",
+        database : process.env.DB_NAME || "studygroup",
+        port : process.env.DB_PORT || 5432,  // PostgreSQL 16 typically uses port 5434
+        ssl: process.env.DB_SSL ? {rejectUnauthorized: false} : false 
+    
     }
 });
-
-// Ryan: I had to use this method to query from the database
-// const knex = require("knex")({
-//     client: "pg",
-//     connection: {
-//         host : process.env.DB_HOST || "localhost",
-//         user : process.env.DB_USER || "postgres",
-//         password : process.env.DB_PASSWORD || "admin1234",
-//         database : process.env.DB_NAME || "foodisus",
-//         port : process.env.DB_PORT || 5432  // PostgreSQL 16 typically uses port 5434
-//     }
-// });
 
 // Authentication Middleware to protect routes
 const isAuthenticated = (req, res, next) => {
@@ -466,4 +460,6 @@ app.post("/editCourses", isAuthenticated, async (req, res) => {
 });
 
 
-app.listen(3000, () => console.log("The server is listening for a client."));
+app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
+});
