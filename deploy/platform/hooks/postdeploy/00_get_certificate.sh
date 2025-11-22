@@ -1,1 +1,0 @@
-sudo certbot -n -d ldssjw.is404.com --nginx --agree-tos --email ldssjw11@gmail.com
