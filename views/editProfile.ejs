@@ -1,116 +1,199 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Edit Profile</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --byu-navy: #002e5d;
-            --byu-white: #ffffff;
-            --byu-accent: #0a4a8a;
-        }
+  <meta charset="utf-8" />
+  <title>Edit Profile</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --byu-navy: #002e5d;
+      --byu-white: #ffffff;
+      --byu-accent: #0a4a8a;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, var(--byu-navy), var(--byu-accent));
+      color: var(--byu-navy);
+      -webkit-font-smoothing: antialiased;
+      display: block;
+    }
+    .page-wrap { max-width: 900px; margin: 2.5rem auto; padding: 1rem; }
+    .card {
+      background: var(--byu-white);
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+      border-top: 8px solid var(--byu-navy);
+    }
+    h2 { color: var(--byu-navy); }
+    .btn-custom {
+      background-color: var(--byu-navy) !important;
+      color: var(--byu-white) !important;
+      border: none;
+      border-radius: 6px;
+      padding: 0.55rem 1rem;
+    }
+    .btn-custom:hover { background-color: var(--byu-accent) !important; }
 
-        body {
-            background: linear-gradient(135deg, var(--byu-navy), var(--byu-accent));
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--byu-navy);
-            animation: gradientShift 8s ease infinite;
-        }
+    .current-classes {
+      margin-top: 1rem;
+      background: #f8f9fa;
+      padding: 0.7rem;
+      border-radius: 8px;
+      border-left: 4px solid var(--byu-navy);
+    }
 
-        .profile-card {
-            background: var(--byu-white);
-            padding: 2rem;
-            border-radius: 1.25rem;
-            width: 600px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-            border-top: 8px solid var(--byu-navy);
-        }
-        .btn-custom {
-            background-color: var(--byu-navy) !important; /* make sure it overrides Bootstrap */
-            color: var(--byu-white) !important;
-            border: none;
-            border-radius: 0.5rem;
-            padding: 0.6rem 1.5rem;
-            font-size: 1rem;
-            margin: 0.5rem 0;
-            transition: background-color 0.2s ease;
-        }
+    .class-row { display:flex; align-items:center; justify-content:space-between; padding:0.35rem 0; border-bottom:1px solid rgba(0,0,0,0.03); }
+    .class-label { font-weight:600; color:#333; }
 
-        .btn-custom:hover {
-            background-color: var(--byu-accent) !important;
-        }
-        .scrollable-courses {
-            max-height: 200px;       /* Adjust height as needed */
-            overflow-y: auto;        /* Enable vertical scroll */
-            padding: 0.5rem;
-            border: 1px solid #ccc;
-            border-radius: 0.5rem;
-            background-color: #f8f9fa;
-        }
-        .course-item {
-            margin-bottom: 0.3rem;
-        }
-    </style>
+    .add-course {
+      margin-top: 1rem;
+      background: #fff;
+      padding: 0.75rem;
+      border-radius: 8px;
+      border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    footer { text-align:center; color:#a7a8aa; margin-top:0.8rem; }
+    @media (max-width:700px) { .page-wrap { padding:0.6rem; } }
+  </style>
 </head>
 
 <body>
-
-<div class="profile-card">
-    <h2 class="text-center mb-3">Edit Profile</h2>
-
-    <form action="/editProfile" method="POST">
-    <!-- Personal Info -->
-    <div class="mb-3">
-        <label>First Name:</label>
-        <input name="stud_first_name" class="form-control" value="<%= student.stud_first_name %>" required>
-    </div>
-
-    <div class="mb-3">
-        <label>Last Name:</label>
-        <input name="stud_last_name" class="form-control" value="<%= student.stud_last_name %>" required>
-    </div>
-
-    <div class="mb-3">
-        <label>Email:</label>
-        <input name="stud_email" class="form-control" value="<%= student.stud_email %>" required>
-    </div>
-
-    <div class="mb-3">
-        <label>Phone:</label>
-        <input name="stud_phone_number" class="form-control" value="<%= student.stud_phone_number %>">
-    </div>
-
-    <div class="mb-3">
-        <label>Gender:</label>
-        <input name="stud_gender" class="form-control" value="<%= student.stud_gender %>">
-    </div>
-
-    <div class="mb-3">
-        <label>Age:</label>
-        <input name="stud_age" type="number" class="form-control" value="<%= student.stud_age %>">
-    </div>
-
-    <!-- Enrolled Courses -->
-    <h3>Edit Your Courses</h3>
-
-    <form action="/editCourses" method="POST">
-        <div id="courseList" class="scrollable-courses">
-            <% allCourses.forEach(course => { %>
-            <div class="course-item">
-                <input type="checkbox" name="courses" value="<%= course.course_id %>"
-                <%= studentCoursesIds.includes(course.course_id) ? 'checked' : '' %> >
-                <%= course.subject_code %> <%= course.course_number %> - <%= course.semester %> <%= course.year %>
-            </div>
-            <% }) %>
+  <div class="page-wrap">
+    <div class="card">
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <h2>Edit Profile</h2>
+        <div>
+          <a href="/profile" class= "btn btn-secondary">Back</a>
         </div>
-     <button class="btn btn-custom mt-3 w-100">Save Changes</button>
-    </form>
-    <a href="/profile" class="btn btn-secondary w-100 mt-3">Cancel</a>
-</div>
+      </div>
 
+      <!-- PROFILE FORM (personal info + remove current classes + add course) -->
+      <form action="/editProfile" method="POST">
+        <!-- Personal info -->
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">First name</label>
+            <input name="stud_first_name" class="form-control" value="<%= student?.stud_first_name || '' %>" required>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Last name</label>
+            <input name="stud_last_name" class="form-control" value="<%= student?.stud_last_name || '' %>" required>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input name="stud_email" type="email" class="form-control" value="<%= student?.stud_email || '' %>" required>
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label">Phone</label>
+            <input name="stud_phone_number" class="form-control" value="<%= student?.stud_phone_number || '' %>">
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Gender</label>
+            <input name="stud_gender" class="form-control" value="<%= student?.stud_gender || '' %>">
+          </div>
+
+          <div class="col-md-2">
+            <label class="form-label">Age</label>
+            <input name="stud_age" type="number" class="form-control" value="<%= student?.stud_age || '' %>">
+          </div>
+        </div>
+
+        <!-- Current classes (list) -->
+        <div class="current-classes">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <strong>Current Classes</strong>
+            <small class="text-muted">Check to remove</small>
+          </div>
+
+          <% if (!studentClasses || studentClasses.length === 0) { %>
+            <div class="text-muted small">No current classes.</div>
+          <% } else { %>
+            <% studentClasses.forEach(cls => { %>
+              <div class="class-row">
+                <div>
+                  <div class="class-label"><%= cls.subject_code %> <%= cls.course_number %></div>
+                  <div class="text-muted small"><%= cls.semester %> <%= cls.year %></div>
+                </div>
+                <div>
+                  <input type="checkbox" name="remove_courses" value="<%= cls.course_id %>">
+                </div>
+              </div>
+            <% }) %>
+          <% } %>
+        </div>
+
+        <!-- Add a new course (subject dropdown, semester, year, course number) -->
+        <div class="add-course">
+          <h5>Add a Course</h5>
+          <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+              <label class="form-label">Subject</label>
+              <select name="add_subject_id" class="form-select" required>
+                <option value="">-- Select Subject --</option>
+                <% subjects.forEach(s => { %>
+                  <option value="<%= s.subject_id %>"><%= s.subject_code %> — <%= s.subject_name %></option>
+                <% }) %>
+              </select>
+            </div>
+
+            <div class="col-md-3">
+              <label class="form-label">Semester</label>
+              <select name="add_semester" class="form-select" required>
+                <option value="">-- Select --</option>
+                <option value="Fall">Fall</option>
+                <option value="Winter">Winter</option>
+                <option value="Spring">Spring</option>
+                <option value="Summer">Summer</option>
+              </select>
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Year</label>
+              <input name="add_year" type="number" min="1900" max="3000" class="form-control" placeholder="2024" required>
+            </div>
+
+            <div class="col-md-2">
+              <label class="form-label">Course #</label>
+              <input name="add_course_number" class="form-control" placeholder="e.g. 140" required>
+            </div>
+          </div>
+
+          <div class="mt-2 small text-muted">
+            If the course already exists in the database with the same subject, number, semester, and year, it will be reused and linked to your student account. Otherwise the course will be created.
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="d-grid gap-2 mt-3">
+          <button type="submit" class="btn btn-custom">Save Changes</button>
+        </div>
+
+
+      </form>
+       <!-- DELETE USER -->
+       <form id="deleteForm" action="/deleteUser" method="POST" class="mt-3">
+        <button type="button" class="btn btn-danger w-30" onclick="confirmDelete()">Delete Account</button>
+        </form>
+
+        <script>
+        function confirmDelete() {
+            if (confirm("Are you sure you want to permanently delete your account? This cannot be undone.")) {
+            document.getElementById("deleteForm").submit();
+            }
+        }
+        </script>
+
+      <footer>© 2025 BYU Study Hub</footer>
+    </div>
+  </div>
 </body>
 </html>
 

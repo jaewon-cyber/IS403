@@ -37,7 +37,7 @@ const knex = require("knex")({
 //         host : process.env.DB_HOST || "localhost",
 //         user : process.env.DB_USER || "postgres",
 //         password : process.env.DB_PASSWORD || "admin1234",
-//         database : process.env.DB_NAME || "foodisus",
+//         database : process.env.DB_NAME || "studygroup",
 //         port : process.env.DB_PORT || 5432  // PostgreSQL 16 typically uses port 5434
 //     }
 // });
@@ -56,25 +56,44 @@ const isAuthenticated = (req, res, next) => {
 
 
 // ➡️ Dashboard Page
-app.get("/", isAuthenticated, async (req, res) => {
-    try {
-        
-        const studentId = req.session.userId;
+app.get("/", async (req, res) => {
+  try {
+    let firstName = "Student";
+    let isStudentUser = false;
 
-        
-        const student = await knex("students")
-            .where("student_id", studentId)
-            .first();
+    if (req.session.userId) {
+      const student = await knex("students")
+        .where("student_id", req.session.userId)
+        .first();
 
-        const firstName = student ? student.stud_first_name : req.session.username;
-
-        res.render("index", { firstName: firstName });
-
-    } catch (err) {
-        console.error("Dashboard Error:", err);
-        res.render("index", { firstName: "Student" }); 
+      if (student) {
+        firstName = student.stud_first_name;
+      } else if (req.session.username) {
+        firstName = req.session.username;
+      }
     }
+
+    // Compare the displayed firstName to "Student" (case-insensitive)
+    if (firstName.toLowerCase() === "student") {
+      isStudentUser = true;
+    }
+
+    res.render("index", {
+      firstName,
+      isStudentUser
+    });
+
+  } catch (err) {
+    console.error("Dashboard Error:", err);
+
+    res.render("index", {
+      firstName: "Student",
+      isStudentUser: true // fallback: treat default "Student" as the placeholder user
+    });
+  }
 });
+
+
 
 
 // Render Login Page
@@ -260,7 +279,7 @@ app.get("/logout", (req, res) => {
 });
 
 
-//Ryan's profile pages 
+ 
 // ==========================
 // PROFILE PAGE ROUTE
 // ==========================
@@ -306,53 +325,65 @@ app.get("/profile", isAuthenticated, async (req, res) => {
 // ==========================
 // EDIT PROFILE (GET) - Display the form
 // ==========================
+// GET /editProfile - show profile + grouped, scrollable course list
+// POST /editProfile - update student info and enrolled courses
+// GET /editProfile - show profile + grouped, scrollable course list
+// GET /editProfile - show profile with current classes and subjects for add
 app.get("/editProfile", isAuthenticated, async (req, res) => {
   try {
     const studentId = req.session.userId;
 
-    // Fetch student info
+    // 1) fetch student info
     const student = await knex("students")
       .where("student_id", studentId)
       .first();
 
-    // Fetch all courses for selection
-    const allCourses = await knex("courses as c")
+    // 2) fetch subjects for dropdown (subject_id, subject_code, subject_name)
+    const subjects = await knex("subjects")
+      .select("subject_id", "subject_code", "subject_name")
+      .orderBy("subject_code");
+
+    // 3) fetch the student's current classes (join courses -> subjects for readable display)
+    const studentClasses = await knex("student_schedules as ss")
+      .leftJoin("courses as c", "ss.course_id", "c.course_id")
       .leftJoin("subjects as s", "c.subject_id", "s.subject_id")
+      .where("ss.student_id", studentId)
       .select(
         "c.course_id",
-        "s.subject_code",
         "c.course_number",
         "c.semester",
-        "c.year"
+        "c.year",
+        "s.subject_code",
+        "s.subject_name"
       )
-      .orderBy("c.year", "desc");
+      .orderBy("c.year", "desc")
+      .orderByRaw(`
+        CASE WHEN c.semester = 'Fall' THEN 4
+             WHEN c.semester = 'Winter' THEN 3
+             WHEN c.semester = 'Spring' THEN 2
+             WHEN c.semester = 'Summer' THEN 1
+             ELSE 0 END DESC
+      `);
 
-    // Fetch current student's enrolled courses
-    const studentCourses = await knex("student_schedules")
-      .where("student_id", studentId)
-      .pluck("course_id"); // returns array of course IDs
-
-    // Render edit profile page with student info, all courses, and current selections
+    // 4) render
     res.render("editProfile", {
       student,
-      allCourses,
-      studentCoursesIds: studentCourses
+      subjects,
+      studentClasses
     });
-
   } catch (err) {
-    console.error("Error loading edit page:", err);
+    console.error("GET /editProfile error:", err);
     res.status(500).send("Server Error");
   }
 });
 
-// ==========================
-// EDIT PROFILE (POST) - Save changes
-// ==========================
+
+// POST /editProfile - update info, remove selected classes, and optionally add a new course
 app.post("/editProfile", isAuthenticated, async (req, res) => {
   const studentId = req.session.userId;
 
   try {
-    // Prepare student info update data
+    // 1) Safe update of student personal info (avoid empty update)
     const updateData = {
       stud_first_name: req.body.stud_first_name,
       stud_last_name: req.body.stud_last_name,
@@ -362,108 +393,280 @@ app.post("/editProfile", isAuthenticated, async (req, res) => {
       stud_age: req.body.stud_age
     };
 
-    // Remove any undefined or empty fields to prevent empty update errors
-    for (const key in updateData) {
-      if (!updateData[key]) delete updateData[key];
-    }
+    // Remove undefined or empty strings
+    Object.keys(updateData).forEach(k => {
+      if (updateData[k] === undefined || updateData[k] === "") delete updateData[k];
+    });
 
-    // Update student info if there is something to update
     if (Object.keys(updateData).length > 0) {
       await knex("students").where("student_id", studentId).update(updateData);
     }
 
-    // ==========================
-    // Handle course selection
-    // ==========================
-    let selectedCourses = req.body.courses || [];
-    if (!Array.isArray(selectedCourses)) selectedCourses = [selectedCourses]; // Ensure array
-    selectedCourses = selectedCourses.map(Number); // Convert IDs to integers
+    // Start a transaction to handle removals and additions atomically
+    await knex.transaction(async trx => {
+      // 2) Handle removals: checkboxes named 'remove_courses'
+      let toRemove = req.body.remove_courses || [];
+      if (!Array.isArray(toRemove)) toRemove = [toRemove];
+      toRemove = toRemove.map(Number).filter(Boolean);
 
-    // Delete old enrollments
-    await knex("student_schedules").where("student_id", studentId).del();
+      if (toRemove.length > 0) {
+        await trx("student_schedules")
+          .where("student_id", studentId)
+          .whereIn("course_id", toRemove)
+          .del();
+      }
 
-    // Insert new enrollments
-    if (selectedCourses.length > 0) {
-      const inserts = selectedCourses.map(courseId => ({
-        student_id: studentId,
-        course_id: courseId
-      }));
-      await knex("student_schedules").insert(inserts);
-    }
+      // 3) Handle adding a new course if add_course fields are present
+      const add_subject_id = req.body.add_subject_id ? Number(req.body.add_subject_id) : null;
+      const add_course_number = (req.body.add_course_number || "").toString().trim();
+      const add_semester = (req.body.add_semester || "").toString().trim();
+      const add_year = req.body.add_year ? parseInt(req.body.add_year, 10) : null;
 
-    res.redirect("/profile"); // Go back to profile page after saving
+      const validAdd = add_subject_id && add_course_number && add_semester && add_year;
 
+      if (validAdd) {
+        // 3a) Check if the exact course already exists
+        let existingCourse = await trx("courses")
+          .where({
+            subject_id: add_subject_id,
+            course_number: add_course_number,
+            semester: add_semester,
+            year: add_year
+          })
+          .first();
+
+        let courseId;
+        if (existingCourse) {
+          courseId = existingCourse.course_id;
+        } else {
+          // 3b) Insert new course and get its id (Postgres returns first)
+          const [inserted] = await trx("courses")
+            .insert({
+              subject_id: add_subject_id,
+              course_number: add_course_number,
+              semester: add_semester,
+              year: add_year
+            })
+            .returning("course_id"); // returns array with inserted row's course_id
+
+          // depending on knex/pg version, inserted might be number or object
+          courseId = typeof inserted === "object" ? inserted.course_id : inserted;
+        }
+
+        // 3c) Link the course to the student if not already linked
+        const alreadyLinked = await trx("student_schedules")
+          .where({ student_id: studentId, course_id: courseId })
+          .first();
+
+        if (!alreadyLinked) {
+          await trx("student_schedules").insert({
+            student_id: studentId,
+            course_id: courseId
+          });
+        }
+      } // end validAdd
+    }); // end transaction
+
+    // Done
+    res.redirect("/profile");
   } catch (err) {
-    console.error("Error updating profile:", err);
+    console.error("POST /editProfile error:", err);
+    // If you want to surface validation to the user, render the form with an error message instead.
     res.status(500).send("Server Error");
   }
 });
 
-// ==========================
-// EDIT COURSES (GET) - Scrollable course list
-// ==========================
-app.get("/editCourses", isAuthenticated, async (req, res) => {
+
+// =========================================
+// CREATE PROFILE (GET)
+// Renders the "Create Profile" form page.
+// =========================================
+app.get("/createProfile", async (req, res) => {
   try {
-    const studentId = req.session.userId;
+    // Load all available subjects from DB for the subject dropdown
+    const subjects = await knex("subjects").select("*");
 
-    // Get the student's current courses
-    const studentCourses = await knex("student_schedules")
-      .where("student_id", studentId)
-      .pluck("course_id");
+    // Render the form with no error message
+    res.render("createProfile", { subjects, error: null });
 
-    // Get all courses for display in a scrollable box
-    const allCourses = await knex("courses as c")
-      .leftJoin("subjects as s", "c.subject_id", "s.subject_id")
-      .select(
-        "c.course_id",
-        "s.subject_code",
-        "c.course_number",
-        "c.semester",
-        "c.year"
-      )
-      .orderBy("c.year", "desc");
-
-    // Render the edit courses page
-    res.render("editCourses", {
-      studentCoursesIds: studentCourses,
-      allCourses
-    });
   } catch (err) {
-    console.error(err);
+    console.error("Error loading profile creation:", err);
     res.status(500).send("Server error");
   }
 });
 
-// ==========================
-// EDIT COURSES (POST) - Save selected courses
-// ==========================
-app.post("/editCourses", isAuthenticated, async (req, res) => {
+
+// =========================================
+// CREATE PROFILE (POST)
+// Handles form submission for creating a new user.
+// Validates input → inserts student → inserts credentials
+// → optionally inserts a course → logs user in.
+// =========================================
+app.post("/createProfile", async (req, res) => {
   try {
-    const studentId = req.session.userId;
+    // Extract submitted form fields
+    const {
+      stud_first_name,
+      stud_last_name,
+      stud_phone_number,
+      stud_email,
+      stud_gender,
+      stud_age,
+      username,
+      password,
+      password_confirm,
+      add_subject_id,
+      add_semester,
+      add_year,
+      add_course_number
+    } = req.body;
 
-    // Ensure courses are an array of integers
-    let selectedCourses = req.body.courses || [];
-    if (!Array.isArray(selectedCourses)) selectedCourses = [selectedCourses];
-    selectedCourses = selectedCourses.map(Number);
+    // Load subjects again (needed if form must re-render after an error)
+    const subjects = await knex("subjects").select("*");
 
-    // Delete all previous enrollments
-    await knex("student_schedules").where("student_id", studentId).del();
-
-    // Insert new selections
-    if (selectedCourses.length > 0) {
-      const inserts = selectedCourses.map(course_id => ({
-        student_id: studentId,
-        course_id
-      }));
-      await knex("student_schedules").insert(inserts);
+    // -----------------------------
+    // VALIDATION: Password length
+    // -----------------------------
+    if (!password || password.length < 8) {
+      return res.render("createProfile", {
+        subjects,
+        error: "Password must be at least 8 characters long."
+      });
     }
 
-    res.redirect("/profile"); // Back to profile page
+    // -----------------------------
+    // VALIDATION: Password match
+    // -----------------------------
+    if (password !== password_confirm) {
+      return res.render("createProfile", {
+        subjects,
+        error: "Passwords do not match."
+      });
+    }
+
+    // -----------------------------
+    // VALIDATION: Username taken?
+    // -----------------------------
+    const existingUser = await knex("credentials")
+      .where({ username })
+      .first();
+
+    if (existingUser) {
+      return res.render("createProfile", {
+        subjects,
+        error: "That username is already taken."
+      });
+    }
+
+    // -----------------------------
+    // INSERT: Student record
+    // -----------------------------
+    const insertedStudent = await knex("students")
+      .insert({
+        stud_first_name,
+        stud_last_name,
+        stud_phone_number,
+        stud_email,
+        stud_gender,
+        stud_age
+      })
+      .returning("student_id");  // Returns array: [{ student_id: X }]
+
+    const studentId = insertedStudent[0].student_id;
+
+    // -----------------------------
+    // INSERT: Login credentials
+    // ties credentials to student_id
+    // -----------------------------
+    await knex("credentials").insert({
+      student_id: studentId,
+      username,
+      password
+    });
+
+    // -----------------------------
+    // OPTIONAL: Insert course + schedule
+    // Only runs if the user provided a subject + course number
+    // -----------------------------
+    if (add_subject_id && add_course_number) {
+      const insertedCourse = await knex("courses")
+        .insert({
+          subject_id: add_subject_id,
+          course_number: add_course_number,
+          semester: add_semester,
+          year: add_year
+        })
+        .returning("course_id");
+
+      const courseId = insertedCourse[0].course_id;
+
+      // Connect student to course
+      await knex("student_schedules").insert({
+        student_id: studentId,
+        course_id: courseId
+      });
+    }
+
+    // -----------------------------
+    // LOG IN THE NEW USER
+    // Store data in session
+    // -----------------------------
+    req.session.userId = studentId;
+    req.session.username = username;
+
+    // Redirect to home page
+    res.redirect("/");
+
   } catch (err) {
-    console.error(err);
+    console.error("Create Profile Error:", err);
     res.status(500).send("Server error");
   }
 });
+
+
+// =========================================
+// DELETE USER
+// Removes:
+// 1. Student schedule entries
+// 2. Credentials (login)
+// 3. Student profile
+// Uses a transaction to ensure all-or-nothing delete.
+// Then logs the user out and redirects to login.
+// =========================================
+app.post("/deleteUser", isAuthenticated, async (req, res) => {
+  const studentId = req.session.userId;
+
+  try {
+    // Use a transaction to safely delete related records
+    await knex.transaction(async trx => {
+
+      // Remove schedule records tied to this student
+      await trx("student_schedules")
+        .where({ student_id: studentId })
+        .del();
+
+      // Remove login credentials
+      await trx("credentials")
+        .where({ student_id: studentId })
+        .del();
+
+      // Remove main student record
+      await trx("students")
+        .where({ student_id: studentId })
+        .del();
+    });
+
+    // After deleting data, destroy the session so the user is logged out
+    req.session.destroy(() => {
+      res.redirect("/login"); // Send user back to login page
+    });
+
+  } catch (err) {
+    console.error("Delete User Error:", err);
+    res.status(500).send("Error deleting user.");
+  }
+});
+
 
 
 app.listen(3000, () => console.log("The server is listening for a client."));
