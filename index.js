@@ -273,8 +273,8 @@ app.get("/logout", (req, res) => {
             console.log(err);
         }
         else {
-            // Redirect to the login page after logout
-            res.redirect("/login"); // FIX: Redirect to /login
+            // Redirect to the dashboard after logout
+            res.redirect("/"); // FIX: Redirect to /
         }
     });
 });
