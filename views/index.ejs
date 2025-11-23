@@ -134,19 +134,30 @@
     <p>Connect with classmates, find study partners, and stay on top of your courses.
     Let’s make learning together easier than ever!</p>
    <div>
-      <a href="/displayUsers" class="btn btn-custom">
-        <i class="bi bi-people-fill me-1"></i>View Users
-      </a>
-
-      <a href="/profile" class="btn btn-custom">
-        <i class="bi bi-person-circle me-1"></i>View Profile
-      </a>
-
+      <% if (!userId) { %>
+        <a href="/login" class="btn btn-custom">
+          <i class="bi bi-people-fill me-1"></i>Login
+        </a>
+      <% } %>
+     
       <% if (!userId) { %>
         <a href="/createProfile" class="btn btn-cp">
           <i class="bi bi-person-plus me-1"></i>Create User
         </a>
       <% } %>
+
+      <% if (userId) { %>
+      <a href="/displayUsers" class="btn btn-custom">
+        <i class="bi bi-people-fill me-1"></i>View Users
+      </a>
+      <% } %>
+
+      <% if (userId) { %>
+      <a href="/profile" class="btn btn-custom">
+        <i class="bi bi-person-circle me-1"></i>View Profile
+      </a>
+      <% } %>
+
       <br><br>
       <% if (userId) { %>
         <a href="/logout" class="btn btn-danger ms-1">
