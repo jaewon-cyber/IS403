@@ -19,28 +19,28 @@ app.use(
 );
 
 // Knex PostgreSQL database configuration
-const knex = require("knex")({
-    client: "pg",
-    connection: {
-        host : "localhost",
-        user : "postgres",
-        password : "admin1234",
-        database : "studygroup",
-        port : 5432
-    }
-});
-
-// Ryan: I had to use this method to query from the database
 // const knex = require("knex")({
 //     client: "pg",
 //     connection: {
-//         host : process.env.DB_HOST || "localhost",
-//         user : process.env.DB_USER || "postgres",
-//         password : process.env.DB_PASSWORD || "admin1234",
-//         database : process.env.DB_NAME || "studygroup",
-//         port : process.env.DB_PORT || 5432  // PostgreSQL 16 typically uses port 5434
+//         host : "localhost",
+//         user : "postgres",
+//         password : "admin1234",
+//         database : "studygroup",
+//         port : 5432
 //     }
 // });
+
+// Ryan: I had to use this method to query from the database
+const knex = require("knex")({
+    client: "pg",
+    connection: {
+        host : process.env.DB_HOST || "localhost",
+        user : process.env.DB_USER || "postgres",
+        password : process.env.DB_PASSWORD || "admin1234",
+        database : process.env.DB_NAME || "studygroup",
+        port : process.env.DB_PORT || 5432  // PostgreSQL 16 typically uses port 5434
+    }
+});
 
 // Authentication Middleware to protect routes
 const isAuthenticated = (req, res, next) => {
