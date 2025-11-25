@@ -136,7 +136,7 @@
           <div class="row g-2 align-items-end">
             <div class="col-md-5">
               <label class="form-label">Subject</label>
-              <select name="add_subject_id" class="form-select" required>
+              <select name="add_subject_id" class="form-select">
                 <option value="">-- Select Subject --</option>
                 <% subjects.forEach(s => { %>
                   <option value="<%= s.subject_id %>"><%= s.subject_code %> — <%= s.subject_name %></option>
@@ -146,7 +146,7 @@
 
             <div class="col-md-3">
               <label class="form-label">Semester</label>
-              <select name="add_semester" class="form-select" required>
+              <select name="add_semester" class="form-select">
                 <option value="">-- Select --</option>
                 <option value="Fall">Fall</option>
                 <option value="Winter">Winter</option>
@@ -157,12 +157,12 @@
 
             <div class="col-md-2">
               <label class="form-label">Year</label>
-              <input name="add_year" type="number" min="1900" max="3000" class="form-control" placeholder="2024" required>
+              <input name="add_year" type="number" min="1900" max="3000" class="form-control" placeholder="2024">
             </div>
 
             <div class="col-md-2">
               <label class="form-label">Course #</label>
-              <input name="add_course_number" class="form-control" placeholder="e.g. 140" required>
+              <input name="add_course_number" class="form-control" placeholder="e.g. 140">
             </div>
           </div>
 
